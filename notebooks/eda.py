@@ -184,9 +184,35 @@ pd.options.display.max_rows = 60
 
 items.sample(frac=1).head(60)
 
-# Apart from the item name, there are some additional features stored in square and round brackets (e.g. game platform or language etc.).
+# Apart from the item name, there are some additional features stored in square and round brackets (e.g. game platform or language etc.). The name structure indicates that those features are somehow related (i.e. the characteristics put in square brackets are some categories). Also, we often have many characteristics on the same level (either two square brackets or multiple values separated by a comma within the same square bracket).
 
-# **TODO:** Extract some item features.
+items["item_feature1"] = items["item_name"] \
+    .str.lower() \
+    .str.extractall("\[(.*?)\]") \
+    [0] \
+    .str.split(",") \
+    .groupby(level=0) \
+    .apply(lambda l: [item.strip() for sublist in l for item in sublist])
+
+items["item_feature1"].explode().value_counts()
+
+items["item_feature2"] = items["item_name"] \
+    .str.lower() \
+    .str.extractall("\((.*?)\)") \
+    [0] \
+    .str.split(",") \
+    .groupby(level=0) \
+    .apply(lambda l: [item.strip() for sublist in l for item in sublist])
+
+items["item_feature2"].explode().value_counts()
+
+items["item_feature3"] = items["item_name"].str.lower().str.extract("(^[^\(\[]*[^ \(\[])")
+
+items["item_feature3"].value_counts(dropna=False).head(20)
+
+# Low count feature - won't be probably useful in this form.
+
+# Generally, it feels that much more can be extracted from `item_name`. Maybe some pre-trained embeddings would be worth to try later.
 
 # # Explore the training set and test set
 
