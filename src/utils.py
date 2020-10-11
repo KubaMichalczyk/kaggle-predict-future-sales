@@ -1,7 +1,10 @@
 import numpy as np
+import pandas as pd
+import datetime as dt
 from sklearn.utils import indexable
 from sklearn.utils.validation import _num_samples
 from sklearn.model_selection._split import _BaseKFold
+
 
 class GroupTimeSeriesSplit(_BaseKFold):
     """
@@ -65,3 +68,25 @@ class GroupTimeSeriesSplit(_BaseKFold):
             else:
                 yield (np.concatenate(groups[:test_start]),
                        np.concatenate(groups[test_start:test_start + test_size]))
+
+
+def clip_target(target):
+    return np.clip(target, 0, 20)
+
+
+def save_submission(y_pred, filename=None):
+    assert np.max(y_pred) <= 20, "Some predicted values are greater than 20. Clip predictions to [0, 20] range first."
+    assert np.min(y_pred) >= 0, "Some predicted values are lower than 20. Clip predictions to [0, 20] range first."
+
+    try:
+        df = pd.concat([test["ID"], pd.Series(y_pred, name="item_cnt_month")], axis=1)
+    except NameError:
+        test = pd.read_csv("../input/test.csv")
+        df = pd.concat([test["ID"], pd.Series(y_pred, name="item_cnt_month")], axis=1)
+
+    if filename is None:
+        filename = "submission_" + dt.datetime.now().strftime("%Y%m%d_%H%M")
+    elif ".csv" not in filename:
+        filename = filename + ".csv"
+
+    df.to_csv("../submissions/" + filename, index=False)
