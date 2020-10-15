@@ -3,6 +3,7 @@ import pandas as pd
 import itertools
 from read_data import read_data
 
+
 def expand_shop_item_grid(sales_train_by_month):
 
     group_dfs = []
@@ -37,10 +38,6 @@ if __name__ == "__main__":
 
     sales_train, test, items, item_categories, shops, calendar = read_data()
 
-    sales_train["date"] = pd.to_datetime(sales_train["date"], format="%d.%m.%Y")
-    sales_train = sales_train.astype({"date_block_num": np.int8, "shop_id": np.int8, "item_id": np.int16,
-                                      "item_price": np.float32, "item_cnt_day": np.int32})
-
     # TODO: Test if it leads to better model performance or should we leave shop_id unchanged
     shops, shop_id_mapping = drop_duplicated_shops(shops)
     sales_train["shop_id"] = sales_train["shop_id"].map(shop_id_mapping)
@@ -58,7 +55,7 @@ if __name__ == "__main__":
     sales_train_by_month = expand_shop_item_grid(sales_train_by_month)
     # TODO: Test if a different imputation method (e.g. KNN) will lead to a better performance
     sales_train_by_month["item_cnt_month"] = sales_train_by_month["item_cnt_month"].fillna(0)
- 
+
     test["date"] = pd.to_datetime("2015-11-01")
     test["date_block_num"] = 34
     sales_by_month = pd.concat([sales_train_by_month, test], axis=0, ignore_index=True)

@@ -31,22 +31,11 @@ from src import translate
 
 # %run -i "../src/read_data.py"
 
-sales_train.dtypes
-
-sales_train.info()
-
-sales_train["date"] = pd.to_datetime(sales_train["date"], format="%d.%m.%Y")
-
 sales_train.describe().apply(lambda s: s.apply(lambda x: format(x, 'g')))
 
 # **item_price** - big standard deviation, negative values (`-1`) and some outliers (e.g. 307980)
 #
 # **item_cnt_day** - big standard deviation (> twice the mean), negative values (e.g. -22) and some outliers (e.g 2169)
-
-sales_train = sales_train.astype({"date_block_num": np.int8, "shop_id": np.int8, "item_id": np.int16, 
-                                  "item_price": np.float32, "item_cnt_day": np.int32})
-
-sales_train.info()
 
 sales_train.isnull().sum(axis=0)
 
