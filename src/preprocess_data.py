@@ -34,6 +34,20 @@ def drop_duplicated_shops(shops):
     return shops, shop_id_mapping
 
 
+def read_preprocessed_data():
+    sales_by_month = pd.read_csv("../input/sales_by_month.csv",
+                                 dtype={"date_block_num": np.int8,
+                                        "shop_id": np.int8,
+                                        "item_id": np.int16,
+                                        "mean_item_price": np.float32,
+                                        "median_item_price": np.float32,
+                                        "item_cnt_month": np.float16,
+                                        "ID": np.float32,
+                                        "item_category_id": np.int8},
+                                 parse_dates=["date"])
+    return sales_by_month
+
+
 if __name__ == "__main__":
 
     sales_train, test, items, item_categories, shops, calendar = read_data()
@@ -58,6 +72,7 @@ if __name__ == "__main__":
 
     test["date"] = pd.to_datetime("2015-11-01")
     test["date_block_num"] = 34
+    test["date_block_num"] = test["date_block_num"].astype(np.int8)
     sales_by_month = pd.concat([sales_train_by_month, test], axis=0, ignore_index=True)
     test.drop(["date", "date_block_num"], axis=1, inplace=True)
 
