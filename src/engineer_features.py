@@ -7,6 +7,7 @@ from collections import Counter
 from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm import tqdm
 from utils import GroupTimeSeriesSplit
+from functools import wraps
 
 
 def reindex(base_extract_fn):
@@ -14,6 +15,7 @@ def reindex(base_extract_fn):
     A decorator that takes a function creating mapping_df (a helper data frame with additional information) and
     reindex mapping_df values to create features compatible with main_df index.
     """
+    @wraps(base_extract_fn)
     def wrapper(main_df, mapping_df, on, **kwargs):
         mapping_df = base_extract_fn(mapping_df, **kwargs)
         cols = mapping_df.columns.drop(on)
@@ -71,7 +73,7 @@ def extract_item_features(items):
 
     items["item_label1"] = items["item_name"] \
         .str.lower() \
-        .str.extractall("\[(.*?)\]") \
+        .str.extractall(r"\[(.*?)\]") \
         [0] \
         .str.split(",") \
         .groupby(level=0) \
@@ -82,7 +84,7 @@ def extract_item_features(items):
 
     items["item_label2"] = items["item_name"] \
         .str.lower() \
-        .str.extractall("\((.*?)\)") \
+        .str.extractall(r"\((.*?)\)") \
         [0] \
         .str.split(",") \
         .groupby(level=0) \
@@ -91,7 +93,7 @@ def extract_item_features(items):
         .where(items["item_label2"].notnull(), None) \
         .apply(lambda l: l if type(l) is list else [l])
 
-    items["item_subname"] = items["item_name"].str.lower().str.extract("(^[^\(\[]*[^ \(\[])")
+    items["item_subname"] = items["item_name"].str.lower().str.extract(r"(^[^\(\[]*[^ \(\[])")
 
     items["item_label1"] = filter_list_column(items["item_label1"], 200)
     mlb = MultiLabelBinarizer()
