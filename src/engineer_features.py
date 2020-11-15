@@ -149,7 +149,7 @@ def extract_possible_discount(sales_train):
 
 
 @reindex
-def extract_lagged_features(df, columns, by, lags=[1, 2, 3, 12], fill_value=None):
+def extract_lagged_features(df, agg_mapping, by, lags=[1, 2, 3, 12], fill_value=None):
     res_df = pd.DataFrame()
     if not isinstance(by, list):
         by_str = by
@@ -157,9 +157,9 @@ def extract_lagged_features(df, columns, by, lags=[1, 2, 3, 12], fill_value=None
     else:
         by_str = "_".join(by)
     by.insert(0, "date")
-    aggregated_df = df.groupby(by)[columns].sum()
+    aggregated_df = df.groupby(by).agg(agg_mapping)
     by.remove("date")
-    for c in columns:
+    for c in agg_mapping.keys():
         for l in lags:
             res_df["_".join([c, "by", by_str, "lag", str(l)])] = aggregated_df \
                 .sort_values("date") \
