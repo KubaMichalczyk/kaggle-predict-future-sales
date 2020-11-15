@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import translate
-from read_data import read_data
+import argparse
 from preprocess_data import read_preprocessed_data
 from collections import Counter
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -213,87 +213,158 @@ def extract_missingness_patterns(df, by, index):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="Extract the features.")
+    parser.add_argument("-i", "--disable_item_features",
+                        dest="item_features",  action="store_false",
+                        help='Whether to disable extracting item features.')
+    parser.add_argument("-s", "--disable_shop_features",
+                        dest="shop_features",  action="store_false",
+                        help='Whether to disable extracting shop features.')
+    parser.add_argument("-ic", "--disable_item_category_features",
+                        dest="item_category_features",  action="store_false",
+                        help='Whether to disable extracting item category features.')
+    parser.add_argument("-c", "--disable_calendar_features",
+                        dest="calendar_features",  action="store_false",
+                        help='Whether to disable extracting calendar features.')
+    parser.add_argument("-d", "--disable_discount_features",
+                        dest="discount_features",  action="store_false",
+                        help='Whether to disable extracting possible discount features.')
+    parser.add_argument("-l", "--disable_lagged_features",
+                        dest="lagged_features",  action="store_false",
+                        help='Whether to disable extracting lagged features.')
+    parser.add_argument("-m", "--disable_missingness_features",
+                        dest="missingness_features",  action="store_false",
+                        help='Whether to disable extracting missingness features.')
+    args = parser.parse_args()
+
     sales_by_month, sales_train, test, items, item_categories, shops, calendar = read_preprocessed_data()
 
-    item_features = extract_item_features(sales_by_month, items, on="item_id")
-    print("Item features extracted.")
-    shop_features = extract_shop_features(sales_by_month, shops, on="shop_id")
-    print("Shop features extracted.")
+    all_features = [sales_by_month]
 
-    item_category_features = extract_item_category_features(sales_by_month, item_categories, on="item_category_id")
-    print("Item category features extracted.")
+    if args.item_features:
+        item_features = extract_item_features(sales_by_month, items, on="item_id")
+        all_features.append(item_features)
+        print("Item features extracted.")
 
-    calendar_features = extract_calendar_features(sales_by_month, calendar, on="date")
-    print("Calendar features extracted.")
+    if args.shop_features:
+        shop_features = extract_shop_features(sales_by_month, shops, on="shop_id")
+        all_features.append(shop_features)
+        print("Shop features extracted.")
 
-    # TODO: Check why there are so many NaNs in discount_features
-    discount_features = extract_possible_discount(sales_by_month, sales_train,
-                                                  on=["date", "date_block_num", "shop_id", "item_id"])
-    print("Discount features extracted.")
+    if args.item_category_features:
+        item_category_features = extract_item_category_features(sales_by_month, item_categories, on="item_category_id")
+        all_features.append(item_category_features)
+        print("Item category features extracted.")
 
-    lagged_features_by_shop_id = extract_lagged_features(main_df=sales_by_month,
-                                                         mapping_df=sales_by_month,
-                                                         on=["date", "shop_id"],
-                                                         columns=["median_item_price", "item_cnt_month"],
-                                                         by="shop_id",
-                                                         lags=[1, 2, 3, 12],
-                                                         fill_value=None)
-    lagged_features_by_item_id = extract_lagged_features(main_df=sales_by_month,
-                                                         mapping_df=sales_by_month,
-                                                         on=["date", "item_id"],
-                                                         columns=["median_item_price", "item_cnt_month"],
-                                                         by="item_id",
-                                                         lags=[1, 2, 3, 12],
-                                                         fill_value=None)
-    lagged_features_by_item_category_id = extract_lagged_features(main_df=sales_by_month,
-                                                                  mapping_df=sales_by_month,
-                                                                  on=["date", "item_category_id"],
-                                                                  columns=["median_item_price", "item_cnt_month"],
-                                                                  by="item_category_id",
-                                                                  lags=[1, 2, 3, 12],
-                                                                  fill_value=None)
-    lagged_features_by_shop_id_item_id = extract_lagged_features(main_df=sales_by_month,
-                                                                 mapping_df=sales_by_month,
-                                                                 on=["date", "shop_id", "item_id"],
-                                                                 columns=["median_item_price", "item_cnt_month"],
-                                                                 by=["shop_id", "item_id"],
-                                                                 lags=[1, 2, 3, 12],
-                                                                 fill_value=None)
-    lagged_features_by_shop_id_item_category_id = extract_lagged_features(main_df=sales_by_month,
-                                                                          mapping_df=sales_by_month,
-                                                                          on=["date", "shop_id", "item_category_id"],
-                                                                          columns=["median_item_price", "item_cnt_month"],
-                                                                          by=["shop_id", "item_category_id"],
-                                                                          lags=[1, 2, 3, 12],
-                                                                          fill_value=None)
-    print("Lagged features extracted.")
+    if args.calendar_features:
+        calendar_features = extract_calendar_features(sales_by_month, calendar, on="date")
+        all_features.append(calendar_features)
+        print("Calendar features extracted.")
 
-    missingness_features_by_shop_id = extract_missingness_patterns(main_df=sales_by_month,
-                                                                   mapping_df=sales_by_month,
-                                                                   on=["date_block_num", "shop_id"],
-                                                                   by="shop_id",
-                                                                   index=shops["shop_id"])
-    missingness_features_by_item_id = extract_missingness_patterns(main_df=sales_by_month,
-                                                                   mapping_df=sales_by_month,
-                                                                   on=["date_block_num", "item_id"],
-                                                                   by="item_id",
-                                                                   index=items["item_id"])
-    missingness_features_by_item_category_id = extract_missingness_patterns(main_df=sales_by_month,
+    if args.discount_features:
+        discount_features = extract_possible_discount(sales_by_month, sales_train,
+                                                    on=["date", "date_block_num", "shop_id", "item_id"])
+        all_features.append(discount_features)
+        print("Discount features extracted.")
+
+    if args.lagged_features:
+        
+        lagged_features_by_shop_id = extract_lagged_features(main_df=sales_by_month,
+                                                            mapping_df=sales_by_month,
+                                                            on=["date", "shop_id"],
+                                                            agg_mapping={"item_cnt_month": "sum",
+                                                                        "mean_item_price": "mean",
+                                                                        "median_item_price": "median"},
+                                                            by="shop_id",
+                                                            lags=[1, 2, 3, 12],
+                                                            fill_value=None)
+        all_features.append(lagged_features_by_shop_id)
+
+        lagged_features_by_item_id = extract_lagged_features(main_df=sales_by_month,
+                                                            mapping_df=sales_by_month,
+                                                            on=["date", "item_id"],
+                                                            agg_mapping={"item_cnt_month": "sum",
+                                                                        "mean_item_price": "mean",
+                                                                        "median_item_price": "median"},
+                                                            by="item_id",
+                                                            lags=[1, 2, 3, 12],
+                                                            fill_value=None)
+        all_features.append(lagged_features_by_item_id)
+        
+        lagged_features_by_item_category_id = extract_lagged_features(main_df=sales_by_month,
+                                                                    mapping_df=sales_by_month,
+                                                                    on=["date", "item_category_id"],
+                                                                    agg_mapping={"item_cnt_month": "sum",
+                                                                                "mean_item_price": "mean",
+                                                                                "median_item_price": "median"},
+                                                                    by="item_category_id",
+                                                                    lags=[1, 2, 3, 12],
+                                                                    fill_value=None)
+        all_features.append(lagged_features_by_item_category_id)
+
+        lagged_features_by_shop_id_item_id = extract_lagged_features(main_df=sales_by_month,
+                                                                    mapping_df=sales_by_month,
+                                                                    on=["date", "shop_id", "item_id"],
+                                                                    agg_mapping={"item_cnt_month": "sum",
+                                                                                "mean_item_price": "mean",
+                                                                                "median_item_price": "median"},
+                                                                    by=["shop_id", "item_id"],
+                                                                    lags=[1, 2, 3, 12],
+                                                                    fill_value=None)        
+        all_features.append(lagged_features_by_shop_id_item_id)
+
+        lagged_features_by_shop_id_item_category_id = extract_lagged_features(main_df=sales_by_month,
                                                                             mapping_df=sales_by_month,
-                                                                            on=["date_block_num", "item_category_id"],
-                                                                            by="item_category_id",
-                                                                            index=item_categories["item_category_id"])
-    missingness_features_by_shop_id_item_id = extract_missingness_patterns(main_df=sales_by_month,
-                                                                           mapping_df=sales_by_month,
-                                                                           on=["date_block_num", "shop_id", "item_id"],
-                                                                           by=["shop_id", "item_id"],
-                                                                           index=[shops["shop_id"], items["item_id"]])
-    missingness_features_by_shop_id_item_category_id = extract_missingness_patterns(main_df=sales_by_month,
-                                                                                    mapping_df=sales_by_month,
-                                                                                    on=["date_block_num", "shop_id",
-                                                                                        "item_category_id"],
-                                                                                    by=["shop_id", "item_category_id"],
-                                                                                    index=[shops["shop_id"],
-                                                                                           item_categories["item_category_id"]])
-    print("Missingness features extracted.")
+                                                                            on=["date", "shop_id", "item_category_id"],
+                                                                            agg_mapping={"item_cnt_month": "sum",
+                                                                                        "mean_item_price": "mean",
+                                                                                        "median_item_price": "median"},
+                                                                            by=["shop_id", "item_category_id"],
+                                                                            lags=[1, 2, 3, 12],
+                                                                            fill_value=None)
+        all_features.append(lagged_features_by_shop_id_item_category_id)
+        print("Lagged features extracted.")
 
+    if args.missingness_features:
+
+        missingness_features_by_shop_id = extract_missingness_patterns(main_df=sales_by_month,
+                                                                    mapping_df=sales_by_month,
+                                                                    on=["date_block_num", "shop_id"],
+                                                                    by="shop_id",
+                                                                    index=shops["shop_id"])
+        all_features.append(missingness_features_by_shop_id)
+
+        missingness_features_by_item_id = extract_missingness_patterns(main_df=sales_by_month,
+                                                                    mapping_df=sales_by_month,
+                                                                    on=["date_block_num", "item_id"],
+                                                                    by="item_id",
+                                                                    index=items["item_id"])
+        all_features.append(missingness_features_by_item_id)
+
+        missingness_features_by_item_category_id = extract_missingness_patterns(main_df=sales_by_month,
+                                                                                mapping_df=sales_by_month,
+                                                                                on=["date_block_num", "item_category_id"],
+                                                                                by="item_category_id",
+                                                                                index=item_categories["item_category_id"])
+        all_features.append(missingness_features_by_item_category_id)
+
+        missingness_features_by_shop_id_item_id = extract_missingness_patterns(main_df=sales_by_month,
+                                                                            mapping_df=sales_by_month,
+                                                                            on=["date_block_num", "shop_id", "item_id"],
+                                                                            by=["shop_id", "item_id"],
+                                                                            index=[shops["shop_id"], items["item_id"]])
+        all_features.append(missingness_features_by_shop_id_item_id)
+
+        missingness_features_by_shop_id_item_category_id = extract_missingness_patterns(main_df=sales_by_month,
+                                                                                        mapping_df=sales_by_month,
+                                                                                        on=["date_block_num", "shop_id",
+                                                                                            "item_category_id"],
+                                                                                        by=["shop_id", "item_category_id"],
+                                                                                        index=[shops["shop_id"],
+                                                                                            item_categories["item_category_id"]])
+        all_features.append(missingness_features_by_shop_id_item_category_id)
+
+        print("Missingness features extracted.")
+
+    all_features = pd.concat(all_features, axis=1)
+    all_features.to_parquet("../input/all_features.parquet")
