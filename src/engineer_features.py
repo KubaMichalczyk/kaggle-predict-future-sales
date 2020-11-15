@@ -183,23 +183,28 @@ def extract_missingness_patterns(df, by, index):
     if not isinstance(index, list):
         index = [index]
 
+    if len(index) > 1:
+        index = pd.MultiIndex.from_product(list([*index]))
+        index = [index]
+
     dfs = list()
     for train_id, val_id in tqdm(GroupTimeSeriesSplit(n_splits=df["date_block_num"].nunique() - 1) \
                                          .split(df, y=None, groups=df["date_block_num"])):
-        current_month = sales_by_month.loc[val_id, "date_block_num"].unique()[0]
-        current_df = sales_by_month \
+        current_month = df.loc[val_id, "date_block_num"].unique()[0]
+        current_df = df \
             .loc[train_id] \
             .pivot_table(values="item_cnt_month", index=by,
                          columns="date_block_num", aggfunc="sum") \
-            .reindex(pd.MultiIndex.from_product(list([sales_by_month.loc[val_id, "date_block_num"].unique(),
-                                                      *index])),
-                    level=1) \
+            .reindex(*index) \
             .apply([lambda row: row.first_valid_index(),
                     lambda row: current_month - row.last_valid_index() - 1,
                     lambda row: row.isnull().mean()], axis=1)
-        current_df.index.names = ["date_block_num", *by]
         dfs.append(current_df)
-    res_df = pd.concat(dfs, axis=0)
+
+    res_df = pd.concat(dfs, axis=0,
+                       keys=df["date_block_num"].unique(),
+                       names=["date_block_num", *by])
+    res_df.columns.name = None
     res_df.rename({"<lambda_0>": "first_nonmissing_month_by_" + by_str,
                    "<lambda_1>": "n_months_since_last_nonmissing_" + by_str,
                    "<lambda_2>": "prop_missing_months_by_" + by_str}, axis=1, inplace=True)
