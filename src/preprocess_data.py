@@ -26,9 +26,10 @@ def drop_duplicated_shops(shops):
 
     shop_id_mapping = dict(zip(shops["shop_id"].unique(), shops["shop_id"].unique()))
     shop_id_mapping[11] = 10
-    shop_id_mapping[57] = 0
-    shop_id_mapping[58] = 1
+    shop_id_mapping[0] = 57
+    shop_id_mapping[1] = 58
 
+    shops["shop_id"] = shops["shop_id"].map(shop_id_mapping)
     shops = shops.drop_duplicates(subset="shop_id", keep="last").sort_values("shop_id").reset_index(drop=True)
 
     return shops, shop_id_mapping
@@ -41,11 +42,40 @@ def read_preprocessed_data():
                                         "item_id": np.int16,
                                         "mean_item_price": np.float32,
                                         "median_item_price": np.float32,
-                                        "item_cnt_month": np.float16,
+                                        "item_cnt_month": np.float32,
                                         "ID": np.float32,
                                         "item_category_id": np.int8},
                                  parse_dates=["date"])
-    return sales_by_month
+
+    sales_train = pd.read_csv("../input/sales_train_preprocessed.csv",
+                              dtype={"date_block_num": np.int8,
+                                      "shop_id": np.int8,
+                                      "item_id": np.int16,
+                                      "item_price": np.float32,
+                                      "item_cnt_day": np.int32},
+                              parse_dates=["date"],
+                              dayfirst=True)
+
+    test = pd.read_csv("../input/test_preprocessed.csv",
+                       dtype={"ID": np.int32,
+                              "shop_id": np.int8,
+                              "item_id": np.int16})
+
+    items = pd.read_csv("../input/items.csv",
+                        dtype={"item_id": np.int16,
+                               "item_category_id": np.int8})
+
+    item_categories = pd.read_csv("../input/item_categories.csv",
+                                  dtype={"item_category_id": np.int8})
+
+    shops = pd.read_csv("../input/shops_preprocessed.csv",
+                        dtype={"shop_id": np.int8})
+
+    calendar = pd.read_csv("../auxiliaries/bank_holidays_calendar.csv",
+                           dtype={"weekday": np.int8},
+                           parse_dates=["date"])
+
+    return sales_by_month, sales_train, test, items, item_categories, shops, calendar
 
 
 if __name__ == "__main__":
@@ -55,6 +85,7 @@ if __name__ == "__main__":
     # TODO: Test if it leads to better model performance or should we leave shop_id unchanged
     shops, shop_id_mapping = drop_duplicated_shops(shops)
     sales_train["shop_id"] = sales_train["shop_id"].map(shop_id_mapping)
+    test["shop_id"] = test["shop_id"].map(shop_id_mapping)
 
     sales_train.loc[sales_train["item_price"] < 0, "item_price"] = np.nan
 
@@ -82,3 +113,6 @@ if __name__ == "__main__":
     sales_by_month.sort_values(["date", "shop_id", "item_id"], inplace=True)
 
     sales_by_month.to_csv("../input/sales_by_month.csv", index=False)
+    sales_train.to_csv("../input/sales_train_preprocessed.csv", index=False)
+    test.to_csv("../input/test_preprocessed.csv", index=False)
+    shops.to_csv("../input/shops_preprocessed.csv", index=False)
