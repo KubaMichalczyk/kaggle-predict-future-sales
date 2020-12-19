@@ -70,6 +70,15 @@ class GroupTimeSeriesSplit(_BaseKFold):
                        np.concatenate(groups[test_start:test_start + test_size]))
 
 
+def custom_skipna(arr, func):
+    a, mask = np.lib.nanfunctions._replace_nan(arr, 0)
+    if np.all(mask):
+        res = np.nan
+    else:
+        res = func(a)
+    return res
+
+
 def clip_target(target):
     return np.clip(target, 0, 20)
 
