@@ -34,7 +34,7 @@ def extract_shop_features(shops):
     shops["city"] = cities.map(cities_translation)
     shops.loc[shops["city"] == "Czechs", "city"] = "Chekhov"
     shops.loc[shops["city"] == "the Internet", "city"] = "Online"
-    shops.loc[shops["city"] == "exit", "city"] = "Door-to-door sales"
+    shops.loc[shops["city"] == "Outgoing", "city"] = "Door-to-door sales"
     shops.loc[shops["city"] == "SPb", "city"] = "St. Petersburg"
 
     shops["shop_type"] = shops["shop_name"].str.extract("([A-Я]{2,})")

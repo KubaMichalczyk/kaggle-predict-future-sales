@@ -10,7 +10,8 @@ def read_data():
                                       "item_id": np.int16,
                                       "item_price": np.float32,
                                       "item_cnt_day": np.int32},
-                              parse_dates=["date"])
+                              parse_dates=["date"],
+                              dayfirst=True)
 
     test = pd.read_csv("../input/test.csv",
                        dtype={"ID": np.int32,
