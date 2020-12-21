@@ -144,14 +144,41 @@ def extract_lagged_features(df, agg_mapping, by, lags=[1, 2, 3, 12], fill_value=
         by_str = "_".join(by)
     by.insert(0, "date_block_num")
     aggregated_df = df.groupby(by).agg(agg_mapping).reset_index()
+    if type(aggregated_df.columns) == pd.core.indexes.multi.MultiIndex:
+        aggregated_df.columns = ['_'.join(col).strip("_") for col in aggregated_df.columns.values]
     by.remove("date_block_num")
     res_df = aggregated_df[["date_block_num"] + by]
-    for c in agg_mapping.keys():
-        for l in lags:
-            shifted = aggregated_df[["date_block_num"] + by + [c]].copy()
-            shifted.loc[:, "date_block_num"] += l
-            shifted.rename({c: "_".join([c, "by", by_str, "lag", str(l)])}, axis=1, inplace=True)
-            res_df = res_df.merge(shifted, how="left", on=["date_block_num"] + by)
+    for k in agg_mapping.keys():
+        for c in aggregated_df.columns[aggregated_df.columns.str.startswith(k)]:
+            for l in lags:
+                shifted = aggregated_df[["date_block_num"] + by + [c]].copy()
+                shifted.loc[:, "date_block_num"] += l
+                shifted.rename({c: "_".join([c, "by", by_str, "lag", str(l)])}, axis=1, inplace=True)
+                res_df = res_df.merge(shifted, how="left", on=["date_block_num"] + by)
+    return res_df
+
+
+@reindex
+def extract_rolling_window_features(df, window, agg_func, by):
+    if not isinstance(by, list):
+        by_str = by
+        by = [by]
+    else:
+        by_str = "_".join(by)
+    by.insert(0, "date_block_num")
+    aggregated_df = df.groupby(by)[["item_cnt_month"]].sum().reset_index()
+    by.remove("date_block_num")
+    res_df = aggregated_df[["date_block_num"] + by]
+    
+    if not isinstance(window, list):
+        window=[window]
+    for w in window:
+        rolling_stats = aggregated_df.groupby(by)["item_cnt_month"].rolling(w).agg(agg_func)
+        rolling_stats.columns = "item_cnt_month_rolling_" + rolling_stats.columns + "_of_" + str(w) + "_by_" + by_str
+        shifted = pd.concat([res_df[["date_block_num"] + by], rolling_stats.reset_index(by, drop=True)], 
+                            axis=1)
+        shifted["date_block_num"] += 1
+        res_df = res_df.merge(shifted, how="left", on=["date_block_num"] + by)
     return res_df
 
 
@@ -214,6 +241,9 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--disable_lagged_features",
                         dest="lagged_features",  action="store_false",
                         help='Whether to disable extracting lagged features.')
+    parser.add_argument("-r", "--disable_rolling_features",
+                        dest="rolling_features",  action="store_false",
+                        help='Whether to disable extracting rolling window features.')
     parser.add_argument("-m", "--disable_missingness_features",
                         dest="missingness_features",  action="store_false",
                         help='Whether to disable extracting missingness features.')
@@ -249,20 +279,34 @@ if __name__ == "__main__":
 
     if args.lagged_features:
         
+        lagged_features_aggregate = extract_lagged_features(main_df=sales_by_month,
+                                                            mapping_df=sales_by_month,
+                                                            on=["date_block_num"],
+                                                            agg_mapping={"item_cnt_month":
+                                                                        [custom_sum,
+                                                                        np.nanmean],
+                                                                        "mean_item_price": np.nanmean,
+                                                                        "median_item_price": np.nanmedian,
+                                                                        "possible_discounts_n": custom_sum,
+                                                                        "possible_discounts_prop": np.nanmean},
+                                                            by=[],
+                                                            lags=[1, 2, 3, 12],
+                                                            fill_value=None)
+        all_features.append(lagged_features_aggregate)
+        
         lagged_features_by_shop_id = extract_lagged_features(main_df=sales_by_month,
                                                              mapping_df=sales_by_month,
                                                              on=["date_block_num",
                                                                  "shop_id"],
                                                              agg_mapping={"item_cnt_month":
-                                                                          lambda x: custom_skipna(x, np.sum),
+                                                                          [custom_sum, 
+                                                                          np.nanmean],
                                                                           "mean_item_price": np.nanmean,
                                                                           "median_item_price": np.nanmedian,
-                                                                          "possible_discounts_n":
-                                                                          lambda x: custom_skipna(x, np.sum),
+                                                                          "possible_discounts_n": custom_sum,
                                                                           "possible_discounts_prop": np.nanmean},
                                                              by="shop_id",
-                                                             lags=[
-                                                                 1, 2, 3, 12],
+                                                             lags=[1, 2, 3, 12],
                                                              fill_value=None)
         all_features.append(lagged_features_by_shop_id)
 
@@ -271,11 +315,11 @@ if __name__ == "__main__":
                                                              on=["date_block_num", 
                                                                  "item_id"],
                                                              agg_mapping={"item_cnt_month":
-                                                                          lambda x: custom_skipna(x, np.sum),
+                                                                          [custom_sum, 
+                                                                          np.nanmean],
                                                                           "mean_item_price": np.nanmean,
                                                                           "median_item_price": np.nanmedian,
-                                                                          "possible_discounts_n":
-                                                                          lambda x: custom_skipna(x, np.sum),
+                                                                          "possible_discounts_n": custom_sum,
                                                                           "possible_discounts_prop": np.nanmean},
                                                              by="item_id",
                                                              lags=[1, 2, 3, 12],
@@ -287,11 +331,11 @@ if __name__ == "__main__":
                                                                       on=["date_block_num",
                                                                           "item_category_id"],
                                                                       agg_mapping={"item_cnt_month":
-                                                                                   lambda x: custom_skipna(x, np.sum),
+                                                                                   [custom_sum,
+                                                                                    np.nanmean],
                                                                                    "mean_item_price": np.nanmean,
                                                                                    "median_item_price": np.nanmedian,
-                                                                                   "possible_discounts_n":
-                                                                                   lambda x: custom_skipna(x, np.sum),
+                                                                                   "possible_discounts_n": custom_sum,
                                                                                    "possible_discounts_prop": np.nanmean},
                                                                       by="item_category_id",
                                                                       lags=[1, 2, 3, 12],
@@ -304,11 +348,11 @@ if __name__ == "__main__":
                                                                          "shop_id", 
                                                                          "item_id"],
                                                                      agg_mapping={"item_cnt_month":
-                                                                                  lambda x: custom_skipna(x, np.sum),
+                                                                                   [custom_sum,
+                                                                                    np.nanmean],
                                                                                   "mean_item_price": np.nanmean,
                                                                                   "median_item_price": np.nanmedian,
-                                                                                  "possible_discounts_n":
-                                                                                  lambda x: custom_skipna(x, np.sum),
+                                                                                  "possible_discounts_n": custom_sum,
                                                                                   "possible_discounts_prop": np.nanmean},
                                                                      by=["shop_id",
                                                                          "item_id"],
@@ -322,15 +366,14 @@ if __name__ == "__main__":
                                                                                   "shop_id", 
                                                                                   "item_category_id"],
                                                                               agg_mapping={"item_cnt_month":
-                                                                                           lambda x: 
-                                                                                           custom_skipna(x, np.sum),
-                                                                                           "mean_item_price": 
+                                                                                           [custom_sum,
+                                                                                            np.nanmean],
+                                                                                           "mean_item_price":
                                                                                            np.nanmean,
                                                                                            "median_item_price": 
                                                                                            np.nanmedian,
                                                                                            "possible_discounts_n":
-                                                                                           lambda x: 
-                                                                                           custom_skipna(x, np.sum),
+                                                                                           custom_sum,
                                                                                            "possible_discounts_prop": 
                                                                                            np.nanmean},
                                                                               by=["shop_id",
@@ -338,7 +381,55 @@ if __name__ == "__main__":
                                                                               lags=[1, 2, 3, 12],
                                                                               fill_value=None)
         all_features.append(lagged_features_by_shop_id_item_category_id)
+        
         print("Lagged features extracted.")
+
+    if args.rolling_features:
+
+        rolling_features_by_shop_id = extract_rolling_window_features(main_df=sales_by_month, 
+                                                                      mapping_df=sales_by_month, 
+                                                                      on=["date_block_num", "shop_id"],
+                                                                      window=[3, 6, 12], 
+                                                                      agg_func=[np.nanmean, np.nanstd], 
+                                                                      by="shop_id")
+        all_features.append(rolling_features_by_shop_id)
+
+        rolling_features_by_item_id = extract_rolling_window_features(main_df=sales_by_month, 
+                                                                      mapping_df=sales_by_month, 
+                                                                      on=["date_block_num", "item_id"],
+                                                                      window=[3, 6, 12], 
+                                                                      agg_func=[np.nanmean, np.nanstd], 
+                                                                      by="item_id")
+        all_features.append(rolling_features_by_item_id)
+
+        rolling_features_by_item_category_id = extract_rolling_window_features(main_df=sales_by_month, 
+                                                                                mapping_df=sales_by_month, 
+                                                                                on=["date_block_num", "item_category_id"],
+                                                                                window=[3, 6, 12], 
+                                                                                agg_func=[np.nanmean, np.nanstd], 
+                                                                                by="item_category_id")
+        all_features.append(rolling_features_by_item_category_id)
+
+        rolling_features_by_shop_id_item_id = extract_rolling_window_features(main_df=sales_by_month, 
+                                                                              mapping_df=sales_by_month, 
+                                                                              on=["date_block_num", "shop_id", "item_id"],
+                                                                              window=[3, 6, 12], 
+                                                                              agg_func=[np.nanmean, np.nanstd], 
+                                                                              by=["shop_id", "item_id"])
+        all_features.append(rolling_features_by_shop_id_item_id)
+        
+        rolling_features_by_shop_id_item_category_id = extract_rolling_window_features(main_df=sales_by_month, 
+                                                                                       mapping_df=sales_by_month,
+                                                                                       on=["date_block_num", 
+                                                                                           "shop_id", 
+                                                                                           "item_id"],
+                                                                                       window=[3, 6, 12],
+                                                                                       agg_func=[np.nanmean, np.nanstd],
+                                                                                       by=["shop_id", 
+                                                                                           "item_category_id"])
+        all_features.append(rolling_features_by_shop_id_item_category_id)
+
+        print("Rolling window features extracted.")
 
     if args.missingness_features:
 
@@ -380,7 +471,8 @@ if __name__ == "__main__":
                                                                                             "item_category_id"],
                                                                                         by=["shop_id", "item_category_id"],
                                                                                         index=[shops["shop_id"],
-                                                                                            item_categories["item_category_id"]])
+                                                                                               item_categories[
+                                                                                                   "item_category_id"]])
         all_features.append(missingness_features_by_shop_id_item_category_id)
 
         print("Missingness features extracted.")
