@@ -189,37 +189,44 @@ def extract_missingness_patterns(df, by, index):
     else:
         by_str = by
         by = [by]
-        # TODO: Should we replace negative scores with np.nan?
 
     if not isinstance(index, list):
         index = [index]
 
-    if len(index) > 1:
-        index = pd.MultiIndex.from_product(list([*index]))
-        index = [index]
-
+    df.loc[df["item_cnt_month"] <= 0, "item_cnt_month"] = np.nan
     dfs = list()
-    for train_id, val_id in tqdm(GroupTimeSeriesSplit(n_splits=df["date_block_num"].nunique() - 1) \
-                                         .split(df, y=None, groups=df["date_block_num"])):
+    for train_id, val_id in tqdm(GroupTimeSeriesSplit(n_splits=df["date_block_num"].nunique() - 1)
+                                 .split(df, y=None, groups=df["date_block_num"])):
         current_month = df.loc[val_id, "date_block_num"].unique()[0]
-        current_df = df \
-            .loc[train_id] \
-            .pivot_table(values="item_cnt_month", index=by,
-                         columns="date_block_num", aggfunc="sum") \
-            .reindex(*index) \
-            .apply([lambda row: row.first_valid_index(),
-                    lambda row: current_month - row.last_valid_index() - 1,
-                    lambda row: row.isnull().mean()], axis=1)
-        dfs.append(current_df)
-        
+        new_index = pd.MultiIndex.from_product(
+            list([*index, pd.Series(np.arange(0, current_month), name="date_block_num")]))
+        df_train = df.loc[train_id]
+        prop_nonmissing = df_train \
+            .groupby(by + ["date_block_num"])["item_cnt_month"] \
+            .sum(min_count=1) \
+            .reindex(new_index) \
+            .isnull() \
+            .groupby(by) \
+            .mean()
+        last_nonmissing = df_train.groupby(by)["date_block_num"].max()
+        first_nonmissing = df_train.groupby(by)['date_block_num'].min()
+        dfs.append(
+            pd.concat([prop_nonmissing, last_nonmissing, first_nonmissing], axis=1))
+
     res_df = pd.concat(dfs, axis=0,
-                       keys=df["date_block_num"].unique(),
+                       keys=df["date_block_num"].unique() + 1,
                        names=["date_block_num", *by])
-    res_df["<lambda_1>"] = res_df.groupby(by)["<lambda_1>"].shift()
     res_df.columns.name = None
-    res_df.rename({"<lambda_0>": "first_nonmissing_month_by_" + by_str,
-                   "<lambda_1>": "n_months_since_last_nonmissing_" + by_str,
-                   "<lambda_2>": "prop_missing_months_by_" + by_str}, axis=1, inplace=True)
+    res_df.columns = ["prop_missing_months_by_" + by_str,
+                      "last_nonmissing_month_by_" + by_str,
+                      "first_nonmissing_month_by_" + by_str]
+    res_df = res_df.astype(np.float32)
+    res_df.reset_index(inplace=True)
+    res_df["n_months_since_first_nonmissing_by_" + by_str] = res_df["date_block_num"] - \
+        res_df["first_nonmissing_month_by_" + by_str]
+    res_df["n_months_since_last_nonmissing_by_" + by_str] = res_df["date_block_num"] - \
+        res_df["last_nonmissing_month_by_" + by_str]
+    return res_df
 
 
 def drop_duplicated_features(df):
@@ -235,6 +242,11 @@ def drop_duplicated_features(df):
     return df.drop(columns=duplicated_cols)
 
 
+def custom_sum(x):
+    """Custom wrapper to preserve function name in aggregates."""
+    return custom_skipna(x, np.sum)
+
+    
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Extract the features.")
@@ -303,6 +315,8 @@ if __name__ == "__main__":
                                                                         np.nanmean],
                                                                         "mean_item_price": np.nanmean,
                                                                         "median_item_price": np.nanmedian,
+                                                                        "mean_item_revenue": np.nanmean,
+                                                                        "median_item_revenue": np.nanmedian,
                                                                         "possible_discounts_n": custom_sum,
                                                                         "possible_discounts_prop": np.nanmean},
                                                             by=[],
@@ -319,6 +333,8 @@ if __name__ == "__main__":
                                                                           np.nanmean],
                                                                           "mean_item_price": np.nanmean,
                                                                           "median_item_price": np.nanmedian,
+                                                                          "mean_item_revenue": np.nanmean,
+                                                                          "median_item_revenue": np.nanmedian,
                                                                           "possible_discounts_n": custom_sum,
                                                                           "possible_discounts_prop": np.nanmean},
                                                              by="shop_id",
@@ -335,6 +351,8 @@ if __name__ == "__main__":
                                                                           np.nanmean],
                                                                           "mean_item_price": np.nanmean,
                                                                           "median_item_price": np.nanmedian,
+                                                                          "mean_item_revenue": np.nanmean,
+                                                                          "median_item_revenue": np.nanmedian,
                                                                           "possible_discounts_n": custom_sum,
                                                                           "possible_discounts_prop": np.nanmean},
                                                              by="item_id",
@@ -351,6 +369,8 @@ if __name__ == "__main__":
                                                                                     np.nanmean],
                                                                                    "mean_item_price": np.nanmean,
                                                                                    "median_item_price": np.nanmedian,
+                                                                                   "mean_item_revenue": np.nanmean,
+                                                                                   "median_item_revenue": np.nanmedian,
                                                                                    "possible_discounts_n": custom_sum,
                                                                                    "possible_discounts_prop": np.nanmean},
                                                                       by="item_category_id",
@@ -368,6 +388,8 @@ if __name__ == "__main__":
                                                                                     np.nanmean],
                                                                                   "mean_item_price": np.nanmean,
                                                                                   "median_item_price": np.nanmedian,
+                                                                                  "mean_item_revenue": np.nanmean,
+                                                                                  "median_item_revenue": np.nanmedian,
                                                                                   "possible_discounts_n": custom_sum,
                                                                                   "possible_discounts_prop": np.nanmean},
                                                                      by=["shop_id",
@@ -387,6 +409,10 @@ if __name__ == "__main__":
                                                                                            "mean_item_price":
                                                                                            np.nanmean,
                                                                                            "median_item_price": 
+                                                                                           np.nanmedian,
+                                                                                           "mean_item_revenue": 
+                                                                                           np.nanmean,
+                                                                                           "median_item_revenue": 
                                                                                            np.nanmedian,
                                                                                            "possible_discounts_n":
                                                                                            custom_sum,
@@ -438,7 +464,7 @@ if __name__ == "__main__":
                                                                                        mapping_df=sales_by_month,
                                                                                        on=["date_block_num", 
                                                                                            "shop_id", 
-                                                                                           "item_id"],
+                                                                                           "item_category_id"],
                                                                                        window=[3, 6, 12],
                                                                                        agg_func=[np.nanmean, np.nanstd],
                                                                                        by=["shop_id", 

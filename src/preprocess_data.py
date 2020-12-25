@@ -89,6 +89,7 @@ if __name__ == "__main__":
     test["shop_id"] = test["shop_id"].map(shop_id_mapping)
 
     sales_train.loc[sales_train["item_price"] < 0, "item_price"] = np.nan
+    sales_train["item_revenue"] = sales_train["item_price"] * sales_train["item_cnt_day"]
     sales_train["possible_discount"] = np.where(np.isnan(sales_train["item_price"]),
                                     np.nan,
                                     ~np.isclose(sales_train["item_price"], sales_train["item_price"].round(2), rtol=1e-8))
@@ -97,17 +98,25 @@ if __name__ == "__main__":
         .groupby(["shop_id", "item_id", "date_block_num", sales_train["date"].dt.to_period("M").dt.to_timestamp()]) \
         .agg({"item_price": [np.nanmean,
                              np.nanmedian],
+              "item_revenue": [np.nanmean,
+                               np.nanmedian],
               "item_cnt_day": np.nansum,
               "possible_discount": [lambda x: custom_skipna(x, np.sum),
                                     lambda x: custom_skipna(x, lambda x2: x2.sum() / x2.size)]}) \
         .reset_index()
     sales_train_by_month.columns = ["shop_id", "item_id", "date_block_num", "date", "mean_item_price",
-                                    "median_item_price", "item_cnt_month", "possible_discounts_n", 
-                                    "possible_discounts_prop"]
+                                    "median_item_price", "mean_item_revenue", "median_item_revenue", 
+                                    "item_cnt_month", "possible_discounts_n", "possible_discounts_prop"]
 
     sales_train_by_month = expand_shop_item_grid(sales_train_by_month)
     # TODO: Test if a different imputation method (e.g. KNN) will lead to a better performance
     sales_train_by_month["item_cnt_month"] = sales_train_by_month["item_cnt_month"].fillna(0)
+    sales_train_by_month["mean_item_revenue"] = np.where(sales_train_by_month["item_cnt_month"] == 0,
+                                                         0,
+                                                         sales_train_by_month["mean_item_revenue"])
+    sales_train_by_month["median_item_revenue"] = np.where(sales_train_by_month["item_cnt_month"] == 0,
+                                                           0,
+                                                           sales_train_by_month["median_item_revenue"])
 
     sales_train_by_month = sales_train_by_month \
         .merge(test[["shop_id", "item_id", "ID"]], on=["shop_id", "item_id"], how="left")
@@ -122,8 +131,8 @@ if __name__ == "__main__":
 
     sales_by_month.sort_values(["date", "shop_id", "item_id"], inplace=True)
     sales_by_month = sales_by_month[["date", "date_block_num", "ID", "shop_id", "item_category_id", "item_id",
-                                     "mean_item_price", "median_item_price", "item_cnt_month", "possible_discounts_n", 
-                                     "possible_discounts_prop"]]
+                                     "mean_item_price", "median_item_price", "mean_item_revenue", "median_item_revenue",
+                                     "item_cnt_month", "possible_discounts_n", "possible_discounts_prop"]]
 
     sales_by_month.to_csv("../input/sales_by_month.csv", index=False)
     sales_train.to_csv("../input/sales_train_preprocessed.csv", index=False)
