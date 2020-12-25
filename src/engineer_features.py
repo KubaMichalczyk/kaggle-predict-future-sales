@@ -40,7 +40,7 @@ def extract_shop_features(shops):
     shops["shop_type"] = shops["shop_name"].str.extract("([A-Я]{2,})")
     shops["shop_subname"] = shops["shop_name"].str.extract('"(.*?)"')
 
-    return shops[["shop_id", "shop_name", "city", "shop_type", "shop_subname"]]
+    return shops[["shop_id", "city", "shop_type", "shop_subname"]]
 
 
 @reindex
@@ -55,7 +55,7 @@ def extract_item_category_features(item_categories):
 
     item_categories["item_subcategory_name"] = item_categories["item_category_name"].str.extract("([^ -][^-]*$)")
 
-    return item_categories[["item_category_id", "item_category_name", "item_subcategory_name", "item_supcategory_name"]]
+    return item_categories[["item_category_id", "item_subcategory_name", "item_supcategory_name"]]
 
 
 def filter_list_column(s, n):
@@ -220,7 +220,19 @@ def extract_missingness_patterns(df, by, index):
     res_df.rename({"<lambda_0>": "first_nonmissing_month_by_" + by_str,
                    "<lambda_1>": "n_months_since_last_nonmissing_" + by_str,
                    "<lambda_2>": "prop_missing_months_by_" + by_str}, axis=1, inplace=True)
-    return res_df.reset_index()
+
+
+def drop_duplicated_features(df):
+    """Drops all duplicated features from the data frame."""
+
+    duplicated_cols = set()
+    for i in tqdm(range(df.shape[1])):
+        c1 = df.iloc[:, i]
+        for j in range(i + 1, df.shape[1]):
+            c2 = df.iloc[:, j]
+            if c1.equals(c2):
+                duplicated_cols.add(df.columns[j])
+    return df.drop(columns=duplicated_cols)
 
 
 if __name__ == "__main__":
@@ -247,7 +259,11 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--disable_missingness_features",
                         dest="missingness_features",  action="store_false",
                         help='Whether to disable extracting missingness features.')
- 
+    parser.add_argument("-dd", "--drop_duplicated_features",
+                        dest="drop_duplicated_features",  action="store_true",
+                        help='Whether to drop duplicated features (if there are any).')
+    args = parser.parse_args()
+
     sales_by_month, sales_train, test, items, item_categories, shops, calendar = read_preprocessed_data()
     
     all_features = [sales_by_month[['date_block_num',
@@ -478,4 +494,7 @@ if __name__ == "__main__":
         print("Missingness features extracted.")
 
     all_features = pd.concat(all_features, axis=1)
+    if args.drop_duplicated_features:
+        all_features = drop_duplicated_features(all_features)
+    
     all_features.to_parquet("../input/all_features.parquet")
