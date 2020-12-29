@@ -83,19 +83,30 @@ def clip_target(target):
     return np.clip(target, 0, 20)
 
 
-def save_submission(y_pred, filename=None):
-    assert np.max(y_pred) <= 20, "Some predicted values are greater than 20. Clip predictions to [0, 20] range first."
-    assert np.min(y_pred) >= 0, "Some predicted values are lower than 20. Clip predictions to [0, 20] range first."
+def save_submission(model, X_test, id_features=None, filename=None, adjust_with_probing=False):
+    
+    if id_features is None:
+        id_features = X_test
 
-    try:
-        df = pd.concat([test["ID"], pd.Series(y_pred, name="item_cnt_month")], axis=1)
-    except NameError:
-        test = pd.read_csv("../input/test.csv")
-        df = pd.concat([test["ID"], pd.Series(y_pred, name="item_cnt_month")], axis=1)
-
+    test = pd.read_csv("../input/test_preprocessed.csv",
+                       dtype={"ID": np.int32,
+                              "shop_id": np.int8,
+                              "item_id": np.int16})
+    
     if filename is None:
-        filename = "submission_" + dt.datetime.now().strftime("%Y%m%d_%H%M")
-    elif ".csv" not in filename:
-        filename = filename + ".csv"
-
-    df.to_csv("../submissions/" + filename, index=False)
+        filename = "submission_" + dt.datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+    else:
+        filename.split(".")[0] + "_" + dt.datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+    
+    if adjust_with_probing:
+        y_pred = model.predict(X_test) + 0.28393650
+    else:
+        y_pred = model.predict(X_test)
+    y_pred = clip_target(y_pred)
+    y_pred = pd.concat([id_features["shop_id"], id_features["item_id"],
+                        pd.Series(y_pred, name="item_cnt_month", index=id_features.index)], axis=1)
+    
+    test \
+        .merge(y_pred, how="left", on=["shop_id", "item_id"]) \
+        .drop(["shop_id", "item_id"], axis=1) \
+        .to_csv("../submissions/" + filename, index=False)    

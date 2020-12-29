@@ -98,19 +98,16 @@ if __name__ == "__main__":
 
     print(args)
 
-    all_features = pd.read_parquet("../input/all_features.parquet")
+    all_features = pd.read_parquet(config.DATA_FILE)
+    # FIXME:
+    all_features = all_features.loc[all_features["date_block_num"] > 11]
 
     X = all_features.loc[all_features["date_block_num"] < args.test_month_id].drop("item_cnt_month", axis=1)
     X_test = all_features.loc[all_features["date_block_num"] == args.test_month_id].drop("item_cnt_month", axis=1)
     y = all_features.loc[all_features["date_block_num"] < args.test_month_id, "item_cnt_month"]
     y = clip_target(y)
-
-    cat_cols = ["shop_id", "item_id", "item_category_id", "item_subname", "city", "shop_type", "shop_subname", 
-                "item_subcategory_name", "item_supcategory_name", "month", "year"]
-    cat_cols = [col for col in X.columns if col in cat_cols]
-    
-    X[cat_cols] = X[cat_cols].fillna("None")
-    X_test[cat_cols] = X_test[cat_cols].fillna("None")
+    id_features = all_features[["date_block_num", "item_id", "shop_id"]]
+    del all_features
 
     if args.cv_type == 0:
 
@@ -211,4 +208,5 @@ if __name__ == "__main__":
         if args.model == "xgboost":
             X_test = encoder.transform(X_test)
         
-        save_submission(model, X_test, adjust_with_probing=False)
+        id_features = id_features.loc[id_features["date_block_num"] == args.test_month_id]
+        save_submission(model, X_test, id_features, adjust_with_probing=False)
