@@ -55,7 +55,7 @@ def fit_model(X_train, y_train, X_val, y_val, **params):
 
     elif args.model == "xgboost":
 
-        te = TargetEncoder(cols=cat_cols)
+        te = TargetEncoder(cols=cat_cols, smoothing=300)
         te.fit(X_train, y_train)
         X_train = te.transform(X_train)
         X_val = te.transform(X_val)
@@ -115,6 +115,7 @@ if __name__ == "__main__":
     all_features = pd.read_parquet(config.DATA_FILE)
     # FIXME:
     all_features = all_features.loc[all_features["date_block_num"] > 11]
+    all_features = all_features.loc[~all_features["shop_id"].isin([9, 20])]
 
     X = all_features.loc[all_features["date_block_num"] < args.test_month_id].drop("item_cnt_month", axis=1)
     X_test = all_features.loc[all_features["date_block_num"] == args.test_month_id].drop("item_cnt_month", axis=1)
@@ -156,6 +157,8 @@ if __name__ == "__main__":
             selected_features = selected_features & ~config.FEATURES.str.contains("rolling")
         if not config.MISSINGNESS_FEATURES:
             selected_features = selected_features & ~config.FEATURES.str.contains("missing")
+        if not config.EMBEDDING_FEATURES:
+            selected_features = selected_features & ~config.FEATURES.str.match(".+_e[0-9]+$")
         if not config.MEDIAN_FEATURES:
             selected_features = selected_features & ~config.FEATURES.str.contains("median")
         if not config.MEAN_FEATURES:
@@ -187,12 +190,12 @@ if __name__ == "__main__":
 
             param_space = [
                 space.Integer(100, 5000, name="iterations"),
-                space.Real(0.01, 0.1, prior="uniform", name="learning_rate"),
+                space.Real(0.01, 0.3, prior="uniform", name="learning_rate"),
                 space.Integer(4, 12, name="depth"),
                 space.Integer(2, 30, name="l2_leaf_reg"),
                 space.Integer(1, 255, name="border_count"),
                 space.Real(1e-2, 10, prior="log-uniform", name="random_strength"),
-                space.Real(0, 1, prior="uniform", name="bagging_temperature"),
+                space.Real(0, 2, prior="uniform", name="bagging_temperature"),
             ]
 
             param_names = ["iterations", "learning_rate", "depth", "l2_leaf_reg", "border_count", "random_strength", 
@@ -211,9 +214,9 @@ if __name__ == "__main__":
 
             param_space = [
                 space.Integer(100, 5000, name="n_estimators"),
-                space.Real(0.01, 0.1, prior="uniform", name="learning_rate"),
+                space.Real(0.01, 0.3, prior="uniform", name="learning_rate"),
                 space.Integer(3, 15, name="max_depth"),
-                space.Integer(1, 7, name="min_child_weight"),
+                space.Integer(1, 11, name="min_child_weight"),
                 space.Real(0, 1, prior="uniform", name="gamma"),
                 space.Real(0.4, 1, prior="uniform", name="colsample_bytree"),
                 space.Real(0.4, 1, prior="uniform", name="subsample"),
@@ -270,6 +273,7 @@ if __name__ == "__main__":
 
     if args.save_model:
         model.save_model(f"../models/model_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.{args.model}")
+        print(f"Model saved in '../models/model_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.{args.model}'")
 
     if args.save_submission:
 
@@ -278,3 +282,5 @@ if __name__ == "__main__":
         
         id_features = id_features.loc[id_features["date_block_num"] == args.test_month_id]
         save_submission(model, X_test, id_features, adjust_with_probing=False)
+        print(f"Submission saved in ../submissions/submission_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.csv")
+
