@@ -96,7 +96,7 @@ def save_submission(model, X_test, id_features=None, filename=None, adjust_with_
     if filename is None:
         filename = "submission_" + dt.datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
     else:
-        filename.split(".")[0] + "_" + dt.datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+        filename = filename.split(".")[0] + "_" + dt.datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
     
     if adjust_with_probing:
         y_pred = model.predict(X_test) + 0.28393650
@@ -110,3 +110,33 @@ def save_submission(model, X_test, id_features=None, filename=None, adjust_with_
         .merge(y_pred, how="left", on=["shop_id", "item_id"]) \
         .drop(["shop_id", "item_id"], axis=1) \
         .to_csv("../submissions/" + filename, index=False)    
+
+
+def adjust_submission_file(file_path):
+
+    submission = pd.read_csv(file_path)
+    
+    test = pd.read_csv("../input/test_preprocessed.csv",
+                       dtype={"ID": np.int32,
+                              "shop_id": np.int8,
+                              "item_id": np.int16})
+    items = pd.read_csv("../input/items.csv",
+                        dtype={"item_id": np.int16,
+                                "item_category_id": np.int8})
+    item_categories = pd.read_csv("../input/item_categories.csv",
+                                    dtype={"item_category_id": np.int8})
+    
+    digital_items = items.loc[
+        items["item_name"].str.lower().str.match(".*(цифровая|цифра).*"), "item_id"
+        ].unique()
+    digital_item_categories = item_categories.loc[
+        item_categories["item_category_name"].str.lower().str.match(".*(цифровая|цифра).*"), "item_category_id"
+        ].unique()
+    
+    test = test.merge(items.merge(item_categories)[["item_id", "item_category_id"]], on="item_id", how="left")
+    ID_digital = test.loc[((test["item_id"].isin(digital_items)) & (test["shop_id"] != 55)) |
+                          ((test["item_category_id"].isin(digital_item_categories)) & (test["shop_id"] != 55)),
+                          "ID"]
+    
+    submission.loc[submission["ID"].isin(ID_digital), "item_cnt_month"] = 0
+    submission.to_csv(file_path.split(".csv")[0] + "_adjusted" + ".csv", index=False)
