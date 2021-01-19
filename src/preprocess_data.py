@@ -83,16 +83,19 @@ if __name__ == "__main__":
 
     sales_train, test, items, item_categories, shops, calendar = read_data()
 
-    # TODO: Test if it leads to better model performance or should we leave shop_id unchanged
     shops, shop_id_mapping = drop_duplicated_shops(shops)
     sales_train["shop_id"] = sales_train["shop_id"].map(shop_id_mapping)
     test["shop_id"] = test["shop_id"].map(shop_id_mapping)
 
+    sales_train = sales_train.loc[(sales_train["item_price"] < np.percentile(sales_train["item_price"], q=100)) &
+                                (sales_train["item_cnt_day"] < np.percentile(sales_train["item_cnt_day"], q=100))]
     sales_train.loc[sales_train["item_price"] < 0, "item_price"] = np.nan
     sales_train["item_revenue"] = sales_train["item_price"] * sales_train["item_cnt_day"]
     sales_train["possible_discount"] = np.where(np.isnan(sales_train["item_price"]),
-                                    np.nan,
-                                    ~np.isclose(sales_train["item_price"], sales_train["item_price"].round(2), rtol=1e-8))
+                                                np.nan,
+                                                ~np.isclose(sales_train["item_price"],
+                                                            sales_train["item_price"].round(2),
+                                                            rtol=1e-8))
 
     sales_train_by_month = sales_train \
         .groupby(["shop_id", "item_id", "date_block_num", sales_train["date"].dt.to_period("M").dt.to_timestamp()]) \
@@ -109,7 +112,6 @@ if __name__ == "__main__":
                                     "item_cnt_month", "possible_discounts_n", "possible_discounts_prop"]
 
     sales_train_by_month = expand_shop_item_grid(sales_train_by_month)
-    # TODO: Test if a different imputation method (e.g. KNN) will lead to a better performance
     sales_train_by_month["item_cnt_month"] = sales_train_by_month["item_cnt_month"].fillna(0)
     sales_train_by_month["mean_item_revenue"] = np.where(sales_train_by_month["item_cnt_month"] == 0,
                                                          0,
