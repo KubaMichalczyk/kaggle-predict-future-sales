@@ -229,6 +229,36 @@ def extract_missingness_patterns(df, by, index):
     return res_df
 
 
+@reindex
+def extract_item_embeddings(items, embed_model):
+    item_embeddings = pd.DataFrame(embed_model["item_embeddings.weight"].cpu().detach().numpy())
+    item_embeddings.columns = ["item_e" + str(i) for i in item_embeddings.columns]
+    items_with_embeddings = pd.concat([items,
+                                       item_embeddings],
+                                      axis=1)
+    return items_with_embeddings
+
+
+@reindex
+def extract_item_category_embeddings(item_categories, embed_model):
+    item_category_embeddings = pd.DataFrame(embed_model["item_category_embeddings.weight"].cpu().detach().numpy())
+    item_category_embeddings.columns = ["item_category_e" + str(i) for i in item_category_embeddings.columns]
+    item_categories_with_embeddings = pd.concat([item_categories,
+                                                 item_category_embeddings],
+                                                axis=1)
+    return item_categories_with_embeddings
+
+
+@reindex
+def extract_shop_embeddings(shops, embed_model):
+    shop_embeddings = pd.DataFrame(embed_model["shop_embeddings.weight"].cpu().detach().numpy())
+    shop_embeddings.columns = ["shop_e" + str(i) for i in shop_embeddings.columns]
+    shops_with_embeddings = pd.concat([shops,
+                                       shop_embeddings],
+                                      axis=1)
+    return shops_with_embeddings
+
+
 def drop_duplicated_features(df):
     """Drops all duplicated features from the data frame."""
 
@@ -271,6 +301,9 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--disable_missingness_features",
                         dest="missingness_features",  action="store_false",
                         help='Whether to disable extracting missingness features.')
+    parser.add_argument("-e", "--disable_embedding_features",
+                        dest="embedding_features",  action="store_false",
+                        help='Whether to disable extracting embedding features.')
     parser.add_argument("-dd", "--drop_duplicated_features",
                         dest="drop_duplicated_features",  action="store_true",
                         help='Whether to drop duplicated features (if there are any).')
@@ -444,12 +477,12 @@ if __name__ == "__main__":
                                                                       by="item_id")
         all_features.append(rolling_features_by_item_id)
 
-        rolling_features_by_item_category_id = extract_rolling_window_features(main_df=sales_by_month, 
-                                                                                mapping_df=sales_by_month, 
-                                                                                on=["date_block_num", "item_category_id"],
-                                                                                window=[3, 6, 12], 
-                                                                                agg_func=[np.nanmean, np.nanstd], 
-                                                                                by="item_category_id")
+        rolling_features_by_item_category_id = extract_rolling_window_features(main_df=sales_by_month,
+                                                                               mapping_df=sales_by_month,
+                                                                               on=["date_block_num", "item_category_id"],
+                                                                               window=[3, 6, 12],
+                                                                               agg_func=[np.nanmean, np.nanstd],
+                                                                               by="item_category_id")
         all_features.append(rolling_features_by_item_category_id)
 
         rolling_features_by_shop_id_item_id = extract_rolling_window_features(main_df=sales_by_month, 
@@ -518,6 +551,33 @@ if __name__ == "__main__":
         all_features.append(missingness_features_by_shop_id_item_category_id)
 
         print("Missingness features extracted.")
+
+    if args.embedding_features:
+        
+        embed_model = torch.load("../models/embedding_model.pt")
+        
+        item_embeddings = extract_item_embeddings(sales_by_month,
+                                                  items[["item_id"]],
+                                                  on=["item_id"],
+                                                  embed_model=embed_model)
+        all_features.append(item_embeddings)
+
+
+        item_category_embeddings = extract_item_category_embeddings(sales_by_month,
+                                                                    item_categories[["item_category_id"]], 
+                                                                    on=["item_category_id"], 
+                                                                    embed_model=embed_model)
+        all_features.append(item_category_embeddings)
+
+
+        shop_embeddings = extract_shop_embeddings(sales_by_month, 
+                                                  shops[["shop_id"]], 
+                                                  on="shop_id", 
+                                                  embed_model=embed_model)
+        all_features.append(shop_embeddings)
+
+        print("Embedding features extracted.")
+
 
     all_features = pd.concat(all_features, axis=1)
     if args.drop_duplicated_features:
