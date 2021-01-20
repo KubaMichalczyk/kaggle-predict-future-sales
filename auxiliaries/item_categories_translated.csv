@@ -1,0 +1,85 @@
+item_category_name,item_category_id,item_category_name_en
+PC - Гарнитуры/Наушники,0,PC - Headsets / Headphones
+Аксессуары - PS2,1,Accessories - PS2
+Аксессуары - PS3,2,Accessories - PS3
+Аксессуары - PS4,3,Accessories - PS4
+Аксессуары - PSP,4,Accessories - PSP
+Аксессуары - PSVita,5,Accessories - PSVita
+Аксессуары - XBOX 360,6,Accessories - XBOX 360
+Аксессуары - XBOX ONE,7,Accessories - XBOX ONE
+Билеты (Цифра),8,Tickets (digits)
+Доставка товара,9,Delivery of goods
+Игровые консоли - PS2,10,Game consoles - PS2
+Игровые консоли - PS3,11,Game consoles - PS3
+Игровые консоли - PS4,12,Game consoles - PS4
+Игровые консоли - PSP,13,Game consoles - PSP
+Игровые консоли - PSVita,14,Game consoles - PSVita
+Игровые консоли - XBOX 360,15,Game consoles - XBOX 360
+Игровые консоли - XBOX ONE,16,Game consoles - XBOX ONE
+Игровые консоли - Прочие,17,Game consoles - Other
+Игры - PS2,18,Games - PS2
+Игры - PS3,19,Games - PS3
+Игры - PS4,20,Games - PS4
+Игры - PSP,21,Games - PSP
+Игры - PSVita,22,Games - PSVita
+Игры - XBOX 360,23,Games - XBOX 360
+Игры - XBOX ONE,24,Игры - XBOX ONE
+Игры - Аксессуары для игр,25,Games - Accessories for games
+Игры Android - Цифра,26,Games Android - Digital
+Игры MAC - Цифра,27,Games MAC - Digital
+Игры PC - Дополнительные издания,28,Games PC - Additional publications
+Игры PC - Коллекционные издания,29,Games PC - Collector's Edition
+Игры PC - Стандартные издания,30,Games PC - Standard Edition
+Игры PC - Цифра,31,Games PC - Digital
+"Карты оплаты (Кино, Музыка, Игры)",32,"Payment card (Movies, Music, Games)"
+Карты оплаты - Live!,33,Payment cards - Live!
+Карты оплаты - Live! (Цифра),34,Payment cards - Live! (Numeral)
+Карты оплаты - PSN,35,Payment cards - PSN
+Карты оплаты - Windows (Цифра),36,Payment card - Windows (figure)
+Кино - Blu-Ray,37,Movies - Blu-Ray
+Кино - Blu-Ray 3D,38,Movies - Blu-Ray 3D
+Кино - Blu-Ray 4K,39,Movie - Blu-Ray 4K
+Кино - DVD,40,Movie - DVD
+Кино - Коллекционное,41,Cinema - Collector
+"Книги - Артбуки, энциклопедии",42,"Books - artbook, encyclopedia"
+Книги - Аудиокниги,43,Books - Audiobooks
+Книги - Аудиокниги (Цифра),44,Books - Audiobooks (figure)
+Книги - Аудиокниги 1С,45,Books - Audiobooks 1C
+Книги - Бизнес литература,46,Books - Business Books
+"Книги - Комиксы, манга",47,"Books - Comics, Manga"
+Книги - Компьютерная литература,48,Books - Computer Books
+Книги - Методические материалы 1С,49,Books - Methodical materials 1C
+Книги - Открытки,50,Books - Postcards
+Книги - Познавательная литература,51,Books - Informative literature
+Книги - Путеводители,52,Books - Travel Guides
+Книги - Художественная литература,53,Books - Fiction
+Книги - Цифра,54,Books - Digital
+Музыка - CD локального производства,55,Music - CD of local production
+Музыка - CD фирменного производства,56,Music - CD production firm
+Музыка - MP3,57,Music - MP3
+Музыка - Винил,58,Music - Vinyl
+Музыка - Музыкальное видео,59,Music - Music video
+Музыка - Подарочные издания,60,Music - Gift Edition
+Подарки - Атрибутика,61,Gifts - Attributes
+"Подарки - Гаджеты, роботы, спорт",62,"Gifts - gadgets, robots, sports"
+Подарки - Мягкие игрушки,63,Gifts - Soft Toys
+Подарки - Настольные игры,64,Gifts - Board Games
+Подарки - Настольные игры (компактные),65,Gifts - Games (compact)
+"Подарки - Открытки, наклейки",66,"Gifts - Cards, Stickers"
+Подарки - Развитие,67,Gifts - Development
+"Подарки - Сертификаты, услуги",68,"Gifts - certificates, services"
+Подарки - Сувениры,69,Gifts - Souvenirs
+Подарки - Сувениры (в навеску),70,Gifts - Souvenirs (weighed in)
+"Подарки - Сумки, Альбомы, Коврики д/мыши",71,"Gifts - Bags, Albums, Mats d / mouse"
+Подарки - Фигурки,72,Gifts - Figures
+Программы - 1С:Предприятие 8,73,Program - 1C: Enterprise 8
+Программы - MAC (Цифра),74,Program - MAC (figure)
+Программы - Для дома и офиса,75,Program - For home and office
+Программы - Для дома и офиса (Цифра),76,Program - Home & Office (Digital)
+Программы - Обучающие,77,Program - Educational
+Программы - Обучающие (Цифра),78,Programs - Educational (figure)
+Служебные,79,System Tools
+Служебные - Билеты,80,Utilities - Tickets
+Чистые носители (шпиль),81,Net carriers (spire)
+Чистые носители (штучные),82,Net carriers (piece)
+Элементы питания,83,batteries
