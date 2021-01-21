@@ -15,24 +15,24 @@ from utils import GroupTimeSeriesSplit, clip_target, save_submission
 
 
 def optimize(params, param_names, X, y, folds):
-    
+
     params = dict(zip(param_names, params))
-    
+
     rmse_list = []
-                
+
     for train_id, val_id in folds:
 
         X_train = X.iloc[train_id, :]
         y_train = y.iloc[train_id]
-        X_val = X.iloc[val_id, :] 
+        X_val = X.iloc[val_id, :]
         y_val = y.iloc[val_id]
-        
+
         model, encoder = fit_model(X_train, y_train, X_val, y_val, **params)
         if args.model == "xgboost":
             X_val = encoder.transform(X_val)
         y_pred = clip_target(model.predict(X_val))
         rmse_list.append(mean_squared_error(y_val, y_pred, squared=False))
-        
+
     return np.mean(rmse_list)
 
 
@@ -41,11 +41,11 @@ def fit_model(X_train, y_train, X_val, y_val, **params):
     if args.model == "catboost":
 
         if args.gpu:
-            model = CatBoostRegressor(**params, loss_function="RMSE", random_state=42, use_best_model=True, 
+            model = CatBoostRegressor(**params, loss_function="RMSE", random_state=42, use_best_model=True,
                                       task_type="GPU")
         else:
-            model = CatBoostRegressor(**params, loss_function="RMSE", random_state=42, use_best_model=True, 
-                                      task_type="CPU")        
+            model = CatBoostRegressor(**params, loss_function="RMSE", random_state=42, use_best_model=True,
+                                      task_type="CPU")
         model.fit(X_train, y_train,
                   cat_features=cat_cols,
                   early_stopping_rounds=config.EARLY_STOPPING_ROUNDS,
@@ -60,10 +60,10 @@ def fit_model(X_train, y_train, X_val, y_val, **params):
         X_train = te.transform(X_train)
         X_val = te.transform(X_val)
         if args.gpu:
-            model = XGBRegressor(**params, random_state=42, verbosity=1, 
+            model = XGBRegressor(**params, random_state=42, verbosity=1,
                                  tree_method='gpu_hist', gpu_id=0, predictor="cpu_predictor")
         else:
-            model = XGBRegressor(**params, random_state=42, verbosity=1)        
+            model = XGBRegressor(**params, random_state=42, verbosity=1)
         model.fit(X_train, y_train,
                   eval_set=[(X_train, y_train),
                             (X_val, y_val)],
@@ -78,7 +78,7 @@ def fit_model(X_train, y_train, X_val, y_val, **params):
 
 
 def convert(o):
-    if isinstance(o, np.int64): return int(o)  
+    if isinstance(o, np.int64): return int(o)
     raise TypeError
 
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                         help="ID of the month to be used as test set.")
     parser.add_argument("-cv", "--cv_type",
                         dest="cv_type", action="store", default=0, type=int, choices=range(1),
-                        help="Cross-validation type to be used." + 
+                        help="Cross-validation type to be used." +
                              "0 - (default) the last month before test_month_id to be used as validation set." +
                              "1 - full cross-validation")
     parser.add_argument("-g", "--gpu",
@@ -113,7 +113,6 @@ if __name__ == "__main__":
     print(args)
 
     all_features = pd.read_parquet(config.DATA_FILE)
-    # FIXME:
     all_features = all_features.loc[all_features["date_block_num"] > 11]
     all_features = all_features.loc[~all_features["shop_id"].isin([9, 20])]
 
@@ -176,11 +175,11 @@ if __name__ == "__main__":
     X = X.loc[:, selected_features]
     X_test = X_test.loc[:, selected_features]
     print(f"There are {X.shape[1]} features in the training dataset.")
-    
-    cat_cols = ["shop_id", "item_id", "item_category_id", "item_subname", "city", "shop_type", "shop_subname", 
+
+    cat_cols = ["shop_id", "item_id", "item_category_id", "item_subname", "city", "shop_type", "shop_subname",
                 "item_subcategory_name", "item_supcategory_name"]
     cat_cols = [col for col in X.columns if col in cat_cols]
-    
+
     X[cat_cols] = X[cat_cols].fillna("None")
     X_test[cat_cols] = X_test[cat_cols].fillna("None")
 
@@ -198,11 +197,11 @@ if __name__ == "__main__":
                 space.Real(0, 2, prior="uniform", name="bagging_temperature"),
             ]
 
-            param_names = ["iterations", "learning_rate", "depth", "l2_leaf_reg", "border_count", "random_strength", 
+            param_names = ["iterations", "learning_rate", "depth", "l2_leaf_reg", "border_count", "random_strength",
                            "bagging_temperature"]
 
             optimization_function = partial(optimize, param_names=param_names, X=X, y=y, folds=folds)
-            result = gp_minimize(optimization_function, dimensions=param_space, n_calls=20, n_random_starts=10, 
+            result = gp_minimize(optimization_function, dimensions=param_space, n_calls=40, n_random_starts=10,
                                  verbose=10)
             best_params = dict(zip(param_names, result.x))
             print(best_params)
@@ -224,11 +223,11 @@ if __name__ == "__main__":
                 space.Real(0.01, 10, prior="log-uniform", name="alpha"),
             ]
 
-            param_names = ["n_estimators", "learning_rate", "max_depth", "min_child_weight", "gamma", 
+            param_names = ["n_estimators", "learning_rate", "max_depth", "min_child_weight", "gamma",
                            "colsample_bytree", "subsample", "lambda", "alpha"]
-            
+
             optimization_function = partial(optimize, param_names=param_names, X=X, y=y, folds=folds)
-            result = gp_minimize(optimization_function, dimensions=param_space, n_calls=20, n_random_starts=10, 
+            result = gp_minimize(optimization_function, dimensions=param_space, n_calls=40, n_random_starts=10,
                                  verbose=10)
             best_params = dict(zip(param_names, result.x))
             print(best_params)
@@ -236,30 +235,30 @@ if __name__ == "__main__":
             with open(f"../models/best_params_{args.model}_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.txt", "w") as file:
                 file.write(json.dumps(best_params, default=convert))
 
-        else: 
+        else:
 
             raise ValueError("Invalid value passed to model. Has to be either CatBoost or XGBoost.")
-        
+
     else:
 
         if args.model == "catboost":
         
             best_params = {}
-        
+
         elif args.model == "xgboost":
         
             best_params = {}
 
-        else: 
+        else:
 
             raise ValueError("Invalid value passed to model. Has to be either CatBoost or XGBoost.")
-    
+
     cv_scores = {}
     for train_id, val_id in folds:
 
         X_train = X.iloc[train_id, :]
         y_train = y.iloc[train_id]
-        X_val = X.iloc[val_id, :] 
+        X_val = X.iloc[val_id, :]
         y_val = y.iloc[val_id]
 
         print("Current validation set: ", np.unique(groups[val_id]))
@@ -279,7 +278,7 @@ if __name__ == "__main__":
 
         if args.model == "xgboost":
             X_test = encoder.transform(X_test)
-        
+
         id_features = id_features.loc[id_features["date_block_num"] == args.test_month_id]
         save_submission(model, X_test, id_features, adjust_with_probing=False)
         print(f"Submission saved in ../submissions/submission_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.csv")
