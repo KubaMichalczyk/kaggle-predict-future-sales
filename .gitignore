@@ -15,7 +15,6 @@ README.html
 cv_vs_lb.csv
 src/.idea/
 src/.vscode/
-src/__init__.py
 src/__pycache__/
 src/catboost_info/
 tests/
